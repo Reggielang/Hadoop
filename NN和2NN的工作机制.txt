@@ -1,0 +1,46 @@
+NameNode -- 存储位置
+内存--好处 计算快，缺点可靠性差
+磁盘-- 好处是可靠性高，计算慢
+fsimage 存储数据（如果是随机读写效率低）
+Edits追加数据
+
+内存
+fslmage存储数据 Edits追加
+加载到内存
+NN工作
+1.加载编辑日志和镜像文件到内存
+
+2.元数据的增删改请求
+
+3.记录操作日志，更新滚动日志
+
+4.内存数据增删改
+
+2NN
+1.请求NN是否需要更新
+
+2.定时时间，Edits中的数据满了
+
+3.请求执行checkpoint
+2.1滚动正在写的Edits
+
+4.拷贝fsimage和edits到2NN.
+
+5.加载到内存合并
+
+6生成新的fsimage
+
+7.拷贝新的fsimage到NN并覆盖
+
+Fsimage文件，HDFS文件系统元数据的一个永久性的检查点，其中包括了HDFS文件系统的所有目录和文件inode的序列化信息。
+Edits文件，存放HDFS文件系统的所有更新操作的路径，文件系统客户端执行的所有写操作首先会被记录到Edits文件中。
+seen_txid文件保存的是一个数字，就是edits_的数字
+
+查看fsimage文件
+hdfs oiv -p XML -i fsimage_0000000000000001178 -o /opt/module/fsimage.xml
+
+查看edits文件
+hdfs oev -p 文件类型 -i 编辑日志 -o 转换后文件输出路径
+hdfs oev -p XML -i edits_0000000000000001179-0000000000000001184 -o /opt/module/edits.xml
+
+

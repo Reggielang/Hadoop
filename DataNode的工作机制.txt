@@ -1,0 +1,14 @@
+1. DataNode启动后向namenode注册
+数据、数据长度、校验和、时间戳
+
+2.namenode返回注册成功
+
+3.以后每周期（默认6小时）上报所有块信息
+
+4.心跳每3秒一次，namenode和datanode互相通信
+
+5.超过10分钟+30秒，没有收到datanode的心跳，则认为该节点不可用。
+
+DataNode进程死亡或者网络故障造成DataNode无法与NameNode通信
+NameNode不会立即把该节点判定为死亡，要经过一段时间，这段时间暂称为超时时长
+HDFS默认的超时时长为10分钟+30秒
