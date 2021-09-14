@@ -1,0 +1,24 @@
+Job提交流程源码
+1.一个Job的map阶段并行度由客户端在提交Job时的切片数决定
+2.每一个split切片分配一个MapTask并行实例处理
+3.默认情况下，切片大小=BlockSize
+4.切片时不考虑数据集整体，而是逐个针对每一个文件单独切片
+
+！！注意：JOBsubmitter会在提交任务时提交三样东西XML（JOB执行任务的参数设置），jar包和切片信息。
+
+
+（1）程序先找到你数据存储的目录。
+（2）开始遍历处理（规划切片）目录下的每一个文件
+（3）遍历第一个文件ss.txt
+
+a）获取文件大小fs.sizeOf(ss.txt)
+b）计算切片大小 
+computeSplitSize(Math.max(minSize,Math.min(maxSize,blocksize)))=blocksize=128M
+c）默认情况下，切片大小=blocksize--块大小不可变，但是可以控制minsize 和maxsize来控制切片大小
+d）每次切片时，都要判断切完剩下的部分是否大于块的1.1倍，不大于1.1倍就划分一块切片
+e）将切片信息写到一个切片规划文件中
+f）整个切片的核心过程在getSplit()方法中完成
+g）InputSplit只记录了切片的元数据信息，比如起始位置、长度以及所在的节点列表等。
+
+（4）提交切片规划文件到YARN上，YARN上的MrAppMaster就可以根据切片规划文件计算开启MapTask个数。
+

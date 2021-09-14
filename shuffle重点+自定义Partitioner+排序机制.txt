@@ -1,0 +1,62 @@
+***shuffle重点-Map 方法之后，Reduce 方法之前的数据处理过程称之为 Shuffle
+具体 Shuffle 过程详解，如下：
+（1）MapTask 收集我们的 map()方法输出的 kv 对，放到内存缓冲区中
+（2）从内存缓冲区不断溢出本地磁盘文件，可能会溢出多个文件
+（3）多个溢出文件会被合并成大的溢出文件
+（4）在溢出过程及合并的过程中，都要调用 Partitioner 进行分区和针对 key 进行排序（快速排序）
+（5）ReduceTask 根据自己的分区号，去各个 MapTask 机器上取相应的结果分区数据
+（6）ReduceTask 会抓取到同一个分区的来自不同 MapTask 的结果文件，ReduceTask 会将这些文件再进行合并（归并排序）
+（7）合并成大文件后，Shuffle 的过程也就结束了，后面进入 ReduceTask 的逻辑运算过
+程（从文件中取出一个一个的键值对 Group，调用用户自定义的 reduce()方法）
+
+注意：
+（1）Shuffle 中的缓冲区大小会影响到 MapReduce 程序的执行效率，原则上说，缓冲区
+越大，磁盘 io 的次数越少，执行速度就越快。
+（2）缓冲区的大小可以通过参数调整，参数：mapreduce.task.io.sort.mb 默认 100M。
+
+***自定义Partitioner类
+将统计结果按照条件输出到不同文件中（分区）。比如：将统计结果按照手机归属地不同省份输出到不同文件中（分区）
+（1）自定义类继承Partitioner，重写getPartition()方法
+（2）在Job驱动中，设置自定义Partitioner
+job.setPartitionerClass(CustomPartitioner.class);
+（3）自定义Partition后，要根据自定义Partitioner的逻辑设置相应数量的ReduceTask
+也就是ReduceTask就被分开了成了几个分区了。
+
+分区总结
+（1）如果ReduceTask的数量> getPartition的结果数，则会多产生几个空的输出文件part-r-000xx；
+（2）如果1<ReduceTask的数量<getPartition的结果数，则有一部分分区数据无处安放，会Exception；
+（3）如果ReduceTask的数量=1，则不管MapTask端输出多少个分区文件，最终结果都交给这一个ReduceTask，最终也就只会产生一个结果文件 part-r-00000；
+（4）分区号必须从零开始，逐一累加
+
+***WritableComparable 排序
+MapTask和ReduceTask均会对数据按照key进行排序。该操作属于Hadoop的默认行为。任何应用程序中的数据均会被排序，而不管逻辑上是否需要。--提高reducer的效率
+默认排序是按照字典顺序排序，且实现该排序的方法是快速排序。
+
+对于MapTask，它会将处理的结果暂时放到环形缓冲区中，当环形缓冲区使用率达到一定阈值后，再对缓冲区中的数据进行一次快速排序，并将这些有序数据溢写到磁盘上，而当数据处理完毕后，它会对磁盘上所有文件进行归并排序。
+
+对于ReduceTask，它从每个MapTask上远程拷贝相应的数据文件，如果文件大小超过一定阈值，则溢写磁盘上，否则存储在内存中。如果磁盘上文件数目达到一定阈值，则进行一次归并排序以生成一个更大文件；如果内存中文件大小或者数目超过一定阈值，则进行一次合并后将数据溢写到磁盘上。当所有数据拷贝完毕后，ReduceTask统一对内存和磁盘上的所有数据进行一次归并排序。
+
+排序分类
+（1）部分排序
+MapReduce根据输入记录的键对数据集排序。保证输出的每个文件内部有序。
+（2）全排序
+最终输出结果只有一个文件，且文件内部有序。实现方式是只设置一个ReduceTask。但该方法在处理大型文件时效率极低，因为一台机器处理所有文件，完全丧失了MapReduce所提供的并行架构。
+（3）辅助排序：（GroupingComparator分组）
+在Reduce端对key进行分组。应用于：在接收的key为bean对象时，想让一个或几个字段相同（全部字段比较不相同）的key进入到同一个reduce方法时，可以采用分组排序。
+（4）二次排序
+在自定义排序过程中，如果compareTo中的判断条件为两个即为二次排序。
+
+***Combiner合并
+（1）Combiner是MR程序中Mapper和Reducer之外的一种组件。
+
+（2）Combiner组件的父类就是Reducer。
+
+（3）Combiner和Reducer的区别在于运行的位置
+Combiner是在每一个MapTask所在的节点运行;Reducer是接收全局所有Mapper的输出结果；
+
+（4）Combiner的意义就是对每一个MapTask的输出进行局部汇总，以减小网络传输量。
+
+（5）Combiner能够应用的前提是不能影响最终的业务逻辑，而且，Combiner的输出kv应该跟Reducer的输入kv类型要对应起来。
+
+如果combiner不影响业务逻辑的最终结果， 直接使用自己的Reducer就行了！来减少Reduce阶段的ReduceTask的负载。
+

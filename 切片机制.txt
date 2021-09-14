@@ -1,0 +1,14 @@
+TextInputFormat  切片机制
+TextInputFormat 是默认的 FileInputFormat 实现类。按行读取每条记录。键是存储该行在整个文件中的起始字节偏移量， LongWritable 类型。值是这行的内容，不包括任何行终止符（换行符和回车符）Text 类型。
+
+对于小文件的处理经常使用！
+CombineTextInputFormat 切片机制
+框架默认的 TextInputFormat 切片机制是对任务按文件规划切片，不管文件多小，都会
+是一个单独的切片，都会交给一个 MapTask，这样如果有大量小文件，就会产生大量的
+MapTask，处理效率极其低下。
+
+CombineTextInputFormat 用于小文件过多的场景，它可以将多个小文件从逻辑上规划到
+一个切片中，这样，多个小文件就可以交给一个 MapTask 处理。
+
+CombineTextInputFormat.setMaxInputSplitSize(job, 4194304);// 4m
+注意：虚拟存储切片最大值设置最好根据实际的小文件大小情况来设置具体的值。
