@@ -1,0 +1,35 @@
+一、 常用端口号
+Hadoop3.x
+HDFS NameNode 内部通常端口：8020、 9000、9820
+HDFS NameNode 对用户的查询端口：9870
+Yarn查看任务运行情况：8088
+历史服务器：19888
+
+Hadoop2.x
+HDFS NameNode 内部通常端口：8020、 9000
+HDFS NameNode 对用户的查询端口：50070
+Yarn查看任务运行情况：8088
+历史服务器：19888
+
+常用的配置文件
+3.x
+core-site.xml
+hdfs-site.xml
+yarn-site.xml
+mapred-site.xml
+workers
+
+2.x
+core-site.xml
+hdfs-site.xml
+yarn-site.xml
+mapred-site.xml
+slaves
+
+二、
+1.HDFS 文件块大小
+硬盘读写速度。 在企业中一般为128M， 256M的文件块
+
+2.HDFS的shell操作
+
+3.HDFS的读写流程

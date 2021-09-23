@@ -1,0 +1,16 @@
+！！！面试重点
+0. MR程序提交到客户端所在的节点
+1.申请一个Application
+2.RM给Application资源和提交的路径hdfs://.../.staging以及application_id
+3.提交job运行所需的资源
+4.资源提交完毕，申请运行mrAppMaster
+5.将用户的请求初始化为一个Task放入FIFO调度队列
+6.nodemanager领取Task任务
+7.创建容器Container
+8.下载job资源到本地
+9.申请运行Map Task容器
+10.领取任务，创建容器
+11.发送程序启动脚本
+12.想RM申请运行Reduce Task程序
+13.Reduce向Map获取相应分区的数据
+14.程序完成后，MRapp会向RM注销自己

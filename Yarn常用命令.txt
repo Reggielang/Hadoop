@@ -1,0 +1,24 @@
+yarn application -list  列出所有application
+
+根据 Application 状态过滤：yarn application -list -appStates （所有状态：ALL、NEW、
+NEW_SAVING、SUBMITTED、ACCEPTED、RUNNING、FINISHED、FAILED、KILLED）
+
+yarn application -kill  application_1612577921195_0001 Kill掉某个任务
+
+查询 Application 日志：yarn logs -applicationId <ApplicationId>
+
+查询 Container 日志：yarn logs -applicationId <ApplicationId> -containerId <ContainerId>
+
+打印 ApplicationAttemp 状态：yarn applicationattempt -status <ApplicationAttemptId>
+
+列出所有 Container：yarn container -list <ApplicationAttemptId>(要在运行时才有，因为container运行完就释放了)
+
+打印 Container 状态： yarn container -status <ContainerId>
+
+列出所有节点：yarn node -list -all
+
+加载队列配置：yarn rmadmin -refreshQueues
+
+打印队列信息：yarn queue -status <QueueName>
+
+
