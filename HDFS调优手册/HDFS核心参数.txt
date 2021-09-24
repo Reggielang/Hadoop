@@ -1,0 +1,44 @@
+1.NameNode内存生产配置
+每个文件块大概占用150byte, 一台服务器128G为例，能存储多少文件块？
+128*1024*1024*1024/150byte=9.1亿
+jmap -heap 端口号
+查看发现 hadoop102 上的 NameNode 和 DataNode 占用内存都是自动分配的，且相等。不是很合理。
+
+经验参考：namenode最小值1G，每增加10000000个block，增加1G内存
+datenode最小值4G，超过4000000，每增加1000000，增加1G内存
+
+具体修改：hadoop-env.sh
+export HDFS_NAMENODE_OPTS="-Dhadoop.security.logger=INFO,RFAS -Xmx1024m"
+export HDFS_DATANODE_OPTS="-Dhadoop.security.logger=ERROR,RFAS -Xmx1024m"
+
+NameNode心跳并发配置
+具体修改 hdfs-site.xml
+<property>
+<name>dfs.namenode.handler.count</name>
+<value>21</value>
+</property>
+企业经验：dfs.namenode.handler.count=20 × 𝑙𝑜𝑔𝑒𝐶𝑙𝑢𝑠𝑡𝑒𝑟 𝑆𝑖𝑧𝑒，比如集群规模（DataNode 台数）为 3 台时，此参数设置为 21
+import math
+print(int(20*math.log(3)))
+
+开启回收站功能，可以将删除的文件在不超时的情况下，恢复原数据，起到防止误删除、备份等作用
+
+具体修改core-site.xml
+配置垃圾回收时间为 1 分钟。
+<property>
+<name>fs.trash.interval</name>
+<value>1</value>
+</property>
+
+通过程序删除的文件不会经过回收站，需要调用 moveToTrash()才进入回收站
+Trash trash = New Trash(conf);
+trash.moveToTrash(path);
+
+只有在命令行利用 hadoop fs -rm 命令删除的文件才会走回收站
+
+hadoop fs -mv 回收站目录 还原目录 进行恢复
+
+
+
+
+

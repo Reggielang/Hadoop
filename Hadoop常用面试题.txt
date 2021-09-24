@@ -1,4 +1,4 @@
-一、 常用端口号
+ 一、 常用端口号
 Hadoop3.x
 HDFS NameNode 内部通常端口：8020、 9000、9820
 HDFS NameNode 对用户的查询端口：9870
@@ -33,3 +33,59 @@ slaves
 2.HDFS的shell操作
 
 3.HDFS的读写流程
+
+三、Map Reduce
+
+1.InputFormat
+默认的是TextInputFormat 输入kv  key是偏移量，v:一行内容
+处理小文件 -- CombineTextInputFormat 把多个文件合并到一起进行统一切片
+
+2.Mapper
+setup()初始化， map()业务逻辑处理 clearup()关闭资源；
+
+3.分区
+默认分区时HashPartitioner，默认按照key的hash值%numberreducetask个数
+自定义分区
+
+4.排序
+部分排序--每一个输出文件内部有序
+全排序--一个reduce对所有数据排序。（慎用-因为所有数据都要进入一个reduce，容易崩溃）
+二次排序--自定义排序，实现WritableCompare接口，重写compareTo方法
+
+5.Combiner
+前提：不是所有任务都能执行combiner，不影响最终的业务逻辑，才能用。提前预聚合mAP =>解决数据倾斜的方法（分担reduce的任务到map阶段） 求和没问题，求平均值有问题
+
+6.Redcuer
+用户写的业务逻辑
+setup() 初始化； reducer()用户的业务逻辑； clearup() 关闭资源；
+
+7.OutputFormat
+默认TextOutputFormat--按行输出到文件
+自定义输出
+
+四
+Yarn的工作机制
+
+Yarn的调度器
+1.FIFO、容量、公平
+2.apache默认调度器 容量
+3.CDH默认调度器公平
+4.容量、公平默认一个default队列，需要创建多队列 
+5.中小企业：hive，spark，flink，mr
+6.中大企业，业务模块：登录、注册、购物车
+好处：解耦，降低风险 降级使用
+7.每个调度器特点：
+容量调度器。公平调度器
+相同点：都支持多队列。可以借资源，支持多用户
+不同点：容量调度器：优先满足先进来的任务执行
+公平调度器：公平，在队列里的任务公平享有队列资源
+8.生产环境怎么选调度器：
+中小企业对并发度要求不高，选择容量
+中大型企业对并发度要求高，选择公平
+
+开发需要重点掌握：
+1.队列运行原理
+2.Yarn常用命令
+3.核心参数的配置
+4.配置容量调度器和公平调度器
+5.tool接口使用
