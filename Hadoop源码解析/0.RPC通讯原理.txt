@@ -1,0 +1,1 @@
+在HDFSClientDemo里实现了一个HDFS，YARN，MapReduce三者的通讯原理
