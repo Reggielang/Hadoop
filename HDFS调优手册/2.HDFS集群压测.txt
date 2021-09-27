@@ -1,0 +1,22 @@
+为了搞清楚 HDFS 的读写性能，生产环境上非常需要对集群进行压测。
+HDFS 的读写性能主要受网络和磁盘影响比较大!
+测试 HDFS 写性能
+100Mbps 单位是 bit；10M/s 单位是 byte ; 1byte=8bit，100Mbps/8=12.5M/s
+
+hadoop jar /opt/module/hadoop-3.1.3/share/hadoop/mapreduce/hadoop-mapreduce-client-
+jobclient-3.1.3-tests.jar TestDFSIO -write -nrFiles 10 -fileSize 128MB
+
+一共参与测试的文件：10 个文件 * 2 个副本 = 20 个（本来是三个副本，但由于是本地生成文件，所以就是两个副本） --如果客户端不在集群节点，那就三个副本都参与计算
+压测后的速度：1.61
+实测速度：1.61M/s * 20 个文件 ≈ 32M/s
+三台服务器的带宽：12.5 + 12.5 + 12.5 ≈ 30m/s
+
+如果实测速度远远小于网络，并且实测速度不能满足工作需求，可以考虑采用固态硬盘或者增加磁盘个数
+
+测试 HDFS 读性能
+
+hadoop jar /opt/module/hadoop-3.1.3/share/hadoop/mapreduce/hadoop-mapreduce-client-
+jobclient-3.1.3-tests.jar TestDFSIO -read -nrFiles 10 -fileSize 128MB
+
+测试结果分析：为什么读取文件速度大于网络带宽？由于目前只有三台服务器，且有三个副本，数据读取就近原则，相当于都是读取的本地磁盘数据，没有走网络。
+

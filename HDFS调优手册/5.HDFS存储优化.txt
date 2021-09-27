@@ -1,0 +1,101 @@
+一、纠删码原理
+HDFS 默认情况下，一个文件有 3 个副本，这样提高了数据的可靠性，但也带来了 2 倍
+的冗余开销。Hadoop3.x 引入了纠删码，采用计算的方式，可以节省约 50％左右的存储空间。但是损耗了一定的CPU计算资源。
+
+查看纠删码操作相关的命令
+hdfs ec
+
+注意：纠删码策略是给具体一个路径设置！所有往此路径下存储的文件，都会执行此策略。
+默认只开启对 RS-6-3-1024k 策略的支持，如要使用别的策略需要提前启用。
+
+开启对 RS-3-2-1024k 策略的支持
+hdfs ec -enablePolicy -policy RS-3-2-1024k
+
+在 HDFS 创建目录，并设置 RS-3-2-1024k 策略
+hdfs dfs -mkdir /input
+hdfs ec -setPolicy -path /input -policy RS-3-2-1024k
+
+上传文件，并查看文件编码后的存储情况
+hdfs dfs -put web.log /input
+
+查看存储路径的数据单元和校验单元，并作破坏实验
+
+二、异构存储（冷热数据分离）
+异构存储主要解决，不同的数据，存储在不同类型的硬盘中，达到最佳性能的问题。
+
+1）关于存储类型
+RAM_DISK：（内存镜像文件系统）
+SSD：（SSD固态硬盘）
+DISK：（普通磁盘，在HDFS中，如果没有主动声明数据目录存储类型默认都是DISK）
+ARCHIVE：（没有特指哪种存储介质，主要的指的是计算能力比较弱而存储密度比较高的存储介质，用来解决数据量的容量扩增的问题，一般用于归档）
+
+说明：从Lazy_Persist到Cold，分别代表了设备的访问速度从快到慢
+
+Lazy_PersistRAM_DISK:1，DISK:n-1
+一个副本保存在内存RAM_DISK中，其余副本保存在磁盘中。
+
+All_SSD  SSD:n
+所有副本都保存在SSD中。
+
+One_SSD SSD:1，DISK:n-1
+一个副本保存在SSD中，其余副本保存在磁盘中。
+
+Hot(default) DISK:n
+Hot：所有副本保存在磁盘中，这也是默认的存储策略。
+
+Warm DSIK:1，ARCHIVE:n-1
+一个副本保存在磁盘上，其余副本保存在归档存储上。
+
+Cold  ARCHIVE:n
+所有副本都保存在归档存储上。
+
+异构存储 Shell 操作
+1）查看当前有哪些存储策略可以用
+hdfs storagepolicies -listPolicies
+
+2）为指定路径（数据存储目录）设置指定的存储策略
+hdfs storagepolicies -setStoragePolicy -path xxx -policy xxx
+
+3）获取指定路径（数据存储目录或文件）的存储策略
+hdfs storagepolicies -getStoragePolicy -path xxx
+
+4）取消存储策略；执行改命令之后该目录或者文件，以其上级的目录为准，如果是根目录，那么就是HOT
+hdfs storagepolicies -unsetStoragePolicy -path xxx
+
+5）查看文件块的分布
+bin/hdfs fsck xxx -files -blocks -locations
+
+6）查看集群节点
+hadoop dfsadmin -report
+
+HOT 存储策略案例
+1）最开始我们未设置存储策略的情况下，我们获取该目录的存储策略
+ hdfs storagepolicies -getStoragePolicy -path /hdfsdata
+
+2）我们查看上传的文件块分布
+hdfs fsck /hdfsdata -files -blocks -locations
+
+WARM 存储策略测试
+1）为数据降温
+hdfs storagepolicies -setStoragePolicy -path /hdfsdata -policy WARM
+
+2）再次查看文件块分布，我们可以看到文件块依然放在原处。
+hdfs fsck /hdfsdata -files -blocks -locations
+
+3）需要让 HDFS 按照存储策略自行移动文件块
+hdfs mover /hdfsdata
+
+4）再次查看文件块分布
+
+COLD存储策略测试(步骤一样只需要修改第一步的存储策略)
+注意：将目录设置为 COLD 并且我们未配置 ARCHIVE 存储目录的情况下，不可以向该目录直接上传文件，会报出异常。
+One_SSD存储策略测试(步骤一样)
+ALL_SSD存储策略测试(步骤一样)
+LAZY_PERSIST 策略测试(步骤一样) -!一般不用(内存存数据非常危险,容易造成数据丢失)
+
+那么出现存储策略为 LAZY_PERSIST 时，文件块副本都存储在 DISK 上的原因有如下两点：
+（1）当客户端所在的 DataNode 节点没有 RAM_DISK 时，则会写入客户端所在的
+DataNode 节点的 DISK 磁盘，其余副本会写入其他节点的 DISK 磁盘。
+（2）当客户端所在的 DataNode 有 RAM_DISK，但“dfs.datanode.max.locked.memory”
+参数值未设置或者设置过小（小于“dfs.block.size”参数值）时，则会写入客户端所在的
+DataNode 节点的 DISK 磁盘，其余副本会写入其他节点的 DISK 磁盘。

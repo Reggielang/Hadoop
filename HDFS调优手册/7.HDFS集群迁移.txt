@@ -1,0 +1,13 @@
+1.Apache 和 Apache 集群间数据拷贝
+
+1）scp 实现两个远程主机之间的文件复制
+scp -r hello.txt root@hadoop103:/user/atguigu/hello.txt // 推 push
+scp -r root@hadoop103:/user/honglang/hello.txt hello.txt // 拉 pull
+scp -r root@hadoop103:/user/honglang/hello.txt root@hadoop104:/user/atguigu //是通过本
+地主机中转实现两个远程主机的文件复制；如果在两个远程主机之间 ssh 没有配置的情况下可以使用该方式。
+
+2）采用 distcp 命令实现两个 Hadoop 集群之间的递归数据复制
+hadoop distcp hdfs://hadoop102:8020/user/honglang/hello.txt hdfs://hadoop105:8020/user/honglang/hello.txt
+
+ Apache 和 CDH 集群间数据拷贝
+百度一下

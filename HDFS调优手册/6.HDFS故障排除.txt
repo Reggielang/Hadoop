@@ -1,0 +1,100 @@
+一、NameNode故障处理
+1）kill -9 NameNode 进程
+恢复namenode进程即可
+hdfs --daemon start namenode
+
+2）删除 NameNode 存储的数据（/opt/module/hadoop-3.1.3/data/tmp/dfs/name）
+拷贝 SecondaryNameNode 中数据到原 NameNode 存储数据目录
+scp -r honglang@hadoop104:/opt/module/hadoop-3.1.3/data/dfs/namesecondary/* ./name/
+然后重启namenode即可
+
+二、集群安全模式&磁盘修复
+1）安全模式：文件系统只接受读数据请求，而不接受删除、修改等变更请求
+
+2）进入安全模式场景
+➢ NameNode 在加载镜像文件和编辑日志期间处于安全模式；
+➢ NameNode 再接收 DataNode 注册时，处于安全模式
+
+3）退出安全模式条件
+dfs.namenode.safemode.min.datanodes:最小可用 datanode 数量，默认 0
+
+dfs.namenode.safemode.threshold-pct:副本数达到最小要求的 block 占系统总 block 数的百分比，默认 0.999f。（只允许丢一个块）
+
+dfs.namenode.safemode.extension:稳定时间，默认值 30000 毫秒，即 30 秒
+
+4）基本语法
+集群处于安全模式，不能执行重要操作（写操作）。集群启动完成后，自动退出安全模式。
+（1）bin/hdfs dfsadmin -safemode get （功能描述：查看安全模式状态）
+（2）bin/hdfs dfsadmin -safemode enter （功能描述：进入安全模式状态）
+（3）bin/hdfs dfsadmin -safemode leave （功能描述：离开安全模式状态）
+（4）bin/hdfs dfsadmin -safemode wait （功能描述：等待安全模式状态
+
+5）磁盘修复
+ hdfs dfsadmin -safemode get -查看安全模型状态
+hdfs dfsadmin -safemode leave -离开安全模式
+
+观察 http://hadoop102:9870/dfshealth.html#tab-overview
+将提示的丢失数据的元数据删除即可
+
+
+6）等待安全模式
+
+先进入安全模式
+hdfs dfsadmin -safemode enter
+
+创建并执行下面的脚本
+在/opt/module/hadoop-3.1.3 路径上，编辑一个脚本 safemode.sh
+
+vim safemode.sh
+#!/bin/bash
+hdfs dfsadmin -safemode wait
+hdfs dfs -put /opt/module/hadoop-3.1.3/README.txt /
+
+4）再打开一个窗口，执行
+hdfs dfsadmin -safemode leave
+
+三、慢磁盘监控
+“慢磁盘”指的时写入数据非常慢的一类磁盘。其实慢性磁盘并不少见，当机器运行时间长了，上面跑的任务多了，磁盘的读写性能自然会退化，严重时就会出现写入数据延时的问题。
+
+如何发现慢磁盘？
+正常在 HDFS 上创建一个目录，只需要不到 1s 的时间。如果你发现创建目录超过 1 分钟及以上，而且这个现象并不是每次都有。只是偶尔慢了一下，就很有可能存在慢磁盘。可以采用如下方法找出是哪块磁盘慢：
+
+1）通过心跳未联系时间。
+一般出现慢磁盘现象，会影响到 DataNode 与 NameNode 之间的心跳。正常情况心跳时间间隔是 3s。超过 3s 说明有异常。
+
+2）fio 命令，测试磁盘的读写性能
+（1）顺序读测试
+sudo yum install -y fio
+sudo fio -filename=/home/honglang/test.log -direct=1 -iodepth 1 -thread -rw=read -ioengine=psync -bs=16k -size=2G -numjobs=10 -runtime=60 -group_reporting -name=test_r
+
+（2）顺序写测试
+sudo fio -filename=/home/honglang/test.log -direct=1 -iodepth 1 -thread -rw=write -ioengine=psync -bs=16k -size=2G -numjobs=10 -runtime=60 -group_reporting -name=test_w
+
+（3）随机写测试
+sudo fio -filename=/home/honglang/test.log -direct=1 -iodepth 1 -thread -rw=randwrite -ioengine=psync -bs=16k -size=2G -numjobs=10 -runtime=60 -group_reporting -name=test_randw
+
+（4）混合随机读写：
+sudo fio -filename=/home/honglang/test.log -direct=1 -iodepth 1 -thread -rw=randrw -rwmixread=70 -ioengine=psync -bs=16k -size=2G -numjobs=10 -runtime=60 -group_reporting -name=test_r_w -ioscheduler=noop
+
+四、小文件归档！！！用的毕竟多
+
+1）HDFS 存储小文件弊端
+每个文件均按块存储，每个块的元数据存储在 NameNode 的内存中，因此 HDFS 存储小文件会非常低效。因为大量的小文件会耗尽 NameNode 中的大部分内存。但注意，存储小文件所需要的磁盘容量和数据块的大小无关。例如，一个 1MB 的文件设置为 128MB 的块存储，实际使用的是 1MB 的磁盘空间，而不是 128MB。
+！所以100个1KB的文件，和100个128MB的文件占用NN内存是一样的
+
+2）解决存储小文件办法之一
+HDFS 存档文件或 HAR 文件，是一个更高效的文件存档工具，它将文件存入 HDFS 块，在减少 NameNode 内存使用的同时，允许对文件进行透明的访问。具体说来，HDFS 存档文件对内还是一个一个独立文件，对 NameNode 而言却是一个整体，减少了 NameNode 的内存。
+
+1）需要启动 YARN 进程
+start-yarn.sh
+
+2）归档文件
+把/input 目录里面的所有文件归档成一个叫 input.har 的归档文件，并把归档后文件存储到/output 路径下。
+hadoop archive -archiveName input.har -p /input /output
+
+3）查看归档的小文件
+hadoop fs -ls /output/input.har 不能查看小文件
+hadoop fs -ls har:///output/input.har 用har协议可以查看小文件
+
+4）解归档文件 对归档文件拷贝
+hadoop fs -cp har:///output/input.har/* /
