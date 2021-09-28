@@ -1,0 +1,5 @@
+1.初始化DataXceriverServer
+2.初始化HTTP服务
+3.初始化DN的RPC服务端
+4.DN向NN注册
+5.向NN发送心跳
