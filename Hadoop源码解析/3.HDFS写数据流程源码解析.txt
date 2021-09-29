@@ -1,0 +1,12 @@
+create创建过程
+1.DN向NN发送创建请求
+2.NN处理DN的创建请求
+3.DataStreamer启动流程
+write上传过程
+1.向DataStreamer的队列里面写数据
+2.建立管道--块存储位置
+3.建立管道--socket发送
+4.建立管道--socket接收
+5.客户端接收DN写数据应答Response
+
+// Directory => File => Block(128M) => packet(64K) => chunk（chunk 512byte + chunksum 4byte）
